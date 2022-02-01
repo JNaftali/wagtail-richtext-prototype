@@ -140,7 +140,12 @@ function BlockComponent({ block }: { block: Block }) {
       ? feature
       : feature.contentElement;
 
-  return <Feature>{block.text}</Feature>;
+  const content = block.text.split('\n');
+  const contentWithBreaks = content
+    .flatMap((x, index) => [x, <br key={index} />])
+    .slice(0, -1);
+
+  return <Feature>{contentWithBreaks}</Feature>;
 }
 
 function getFeatureForBlock(block: Block) {
