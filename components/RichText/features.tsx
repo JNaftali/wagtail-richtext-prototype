@@ -40,6 +40,7 @@ export const entityFeatures: { [type: string]: Entity } = {
   HORIZONTAL_RULE: 'hr',
   IMAGE: ImageComponent,
   LINK: LinkComponent,
+  EMBED: EmbedComponent,
 };
 
 interface ImageProps {
@@ -61,4 +62,8 @@ function ImageComponent({ data }: { data: ImageProps }) {
 
 function LinkComponent({ data, ...rest }: { data: { url: string } }) {
   return <a href={data.url} {...rest} />;
+}
+
+function EmbedComponent({ data, ...rest }: { data: { html: string } }) {
+  return <div dangerouslySetInnerHTML={{ __html: data.html }} />;
 }
