@@ -5,6 +5,7 @@ import {
   entityFeatures,
 } from './features';
 import { createElement as h } from 'react';
+import { resourceLimits } from 'worker_threads';
 
 interface EntityRange {
   key: number;
@@ -19,16 +20,17 @@ interface InlineStyleRange {
 }
 
 interface Block {
-  depth: number;
-  entityRanges: EntityRange[];
-  inlineStyleRanges: InlineStyleRange[];
+  depth?: number;
+  entityRanges?: EntityRange[];
+  inlineStyleRanges?: InlineStyleRange[];
   key: string;
   text: string;
   type: string;
 }
 
 interface Entity {
-  mutability: 'MUTABLE' | 'IMMUTABLE';
+  // mutability: 'MUTABLE' | 'IMMUTABLE';
+  mutability: string; // we don't use this anyway
   type: string;
   data: any;
 }
@@ -39,7 +41,7 @@ interface EntityMap {
 
 interface Props {
   data: {
-    blocks: Block[];
+    blocks: (Block | { text: string })[];
     entityMap: EntityMap;
   };
 }
@@ -52,6 +54,18 @@ export default function RichText({ data }: Props) {
   let index = 0;
   while (index < totalBlocks) {
     const currentBlock = blocks[index];
+
+    if (!('key' in currentBlock)) {
+      result.push(
+        <BlockComponent
+          key={index}
+          block={{ ...currentBlock, type: 'unstyled', key: index.toString() }}
+          entityMap={entityMap}
+        />,
+      );
+      index += 1;
+      continue;
+    }
 
     if (currentBlock.type === 'atomic') {
       result.push(
@@ -92,8 +106,10 @@ export default function RichText({ data }: Props) {
     if ('wrapperElement' in blockFeature) {
       // Grab all elements wrapped in the same list
       const listElements = pickUntil(
-        blocks.slice(index),
-        (block) => block.type !== currentBlock.type && block.depth === 0,
+        // Safe to ignore elements that are just text because those (by definition) aren't part of lists
+        blocks.slice(index) as Block[],
+        (block) =>
+          block.type !== currentBlock.type && getBlockDepth(block) === 0,
       );
 
       result.push(
@@ -134,7 +150,7 @@ function WrappedBlockComponent({
     const currentFeature = getFeatureForBlock(currentBlock);
     if (typeof currentFeature !== 'object')
       throw new Error('unknown or incorrect feature in WrappedBlockComponent');
-    if (currentBlock.depth === depth) {
+    if (getBlockDepth(currentBlock) === depth) {
       result.push(
         <BlockComponent
           key={currentBlock.key}
@@ -146,7 +162,8 @@ function WrappedBlockComponent({
     } else {
       const subList = pickUntil(
         blocks.slice(index),
-        (block) => block.depth === depth || block.type !== currentBlock.type,
+        (block) =>
+          getBlockDepth(block) === depth && block.type !== currentBlock.type,
       );
       result.push(
         <WrappedBlockComponent
@@ -183,9 +200,10 @@ function BlockComponent({
     .flatMap((x, index) => [x, <br key={index} />])
     .slice(0, -1);
 
-  const styles = [...block.inlineStyleRanges, ...block.entityRanges].sort(
-    (a, b) => (a.offset > b.offset ? 1 : -1),
-  );
+  const styles = [
+    ...(block.inlineStyleRanges ?? []),
+    ...(block.entityRanges ?? []),
+  ].sort((a, b) => (a.offset > b.offset ? 1 : -1));
   const contentWithBreaksAndStyles: any[] = [];
 
   if (styles) {
@@ -291,7 +309,7 @@ function AtomicBlock({
   block: Block;
   entityMap: EntityMap;
 }) {
-  const entityKey = block.entityRanges[0]?.key;
+  const entityKey = block.entityRanges![0]?.key;
   if (typeof entityKey === 'undefined')
     throw new Error('weird entity shenanigans');
   const entity = entityMap[entityKey];
@@ -306,6 +324,11 @@ function AtomicBlock({
   } else {
     return <Feature data={entity.data} />;
   }
+}
+
+function getBlockDepth(block: Block | { text: string }) {
+  if ('depth' in block) return block.depth ?? 0;
+  else return 0;
 }
 
 /**
@@ -357,5 +380,6 @@ function getFeatureForEntity(entity: Entity) {
 
 function pickUntil<T>(ary: T[], predicate: (item: T) => boolean) {
   const firstCorrect = ary.findIndex((item) => predicate(item));
+  if (firstCorrect === -1) return ary.slice(0);
   return ary.slice(0, firstCorrect);
 }
