@@ -40,6 +40,7 @@ export const styleFeatures: { [key: string]: SimpleFeature } = {
   STRIKETHROUGH: 's',
   CODE: 'code',
   KBD: 'kbd',
+  HIGHLIGHT: 'strong',
 };
 
 export type Entity = string | React.FC<{ data: any }>;
@@ -73,6 +74,7 @@ function LinkComponent({ data, ...rest }: { data: { url: string } }) {
 }
 
 function EmbedComponent({ data, ...rest }: { data: { html: string } }) {
-  return <p>Embed suppressed because console errors are annoying</p>;
-  // return <div dangerouslySetInnerHTML={{ __html: data.html }} />;
+  if (!data.html) return null;
+  // return <p>Embed suppressed because console errors are annoying</p>;
+  return <div {...rest} dangerouslySetInnerHTML={{ __html: data.html }} />;
 }
