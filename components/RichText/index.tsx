@@ -81,16 +81,11 @@ export default function RichText({ data }: Props) {
 
     const blockFeature = blockFeatures[currentBlock.type];
 
-    if (!blockFeature) {
-      result.push(<p key={currentBlock.key}>unimplemented</p>);
-      index += 1;
-      continue;
-    }
-
     // When there's no wrapper/nesting to worry about, just render the block
     if (
       typeof blockFeature === 'function' ||
-      typeof blockFeature === 'string'
+      typeof blockFeature === 'string' ||
+      typeof blockFeature === 'undefined'
     ) {
       result.push(
         <BlockComponent
@@ -163,7 +158,7 @@ function WrappedBlockComponent({
       const subList = pickUntil(
         blocks.slice(index),
         (block) =>
-          getBlockDepth(block) === depth && block.type !== currentBlock.type,
+          getBlockDepth(block) === depth || block.type !== currentBlock.type,
       );
       result.push(
         <WrappedBlockComponent
@@ -188,7 +183,7 @@ function BlockComponent({
   block: Block;
   entityMap: EntityMap;
 }) {
-  const feature = getFeatureForBlock(block) ?? 'p';
+  const feature = getFeatureForBlock(block) ?? 'div';
 
   const BlockComponentType =
     typeof feature === 'string' || typeof feature === 'function'

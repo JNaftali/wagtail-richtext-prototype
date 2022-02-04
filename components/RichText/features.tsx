@@ -23,6 +23,13 @@ export const blockFeatures: { [key: string]: BlockFeature } = {
   ['header-five']: 'h5',
   ['header-six']: 'h6',
   blockquote: 'blockquote',
+  ['code-block']: ({ children, ...rest }) => (
+    <pre {...rest}>
+      <code>{children}</code>
+    </pre>
+  ),
+  ['example-delete']: () => null,
+  ['example-discard']: ({ children }) => <>{children}</>,
 };
 
 export const styleFeatures: { [key: string]: SimpleFeature } = {
