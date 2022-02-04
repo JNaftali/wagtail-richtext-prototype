@@ -1,10 +1,10 @@
-export type SimpleBlockFeature = string | React.FC;
+export type SimpleFeature = string | React.FC;
 export interface WrappedBlockFeature {
   wrapperElement: React.FC | string;
   contentElement: React.FC | string;
 }
 
-export type BlockFeature = WrappedBlockFeature | SimpleBlockFeature;
+export type BlockFeature = WrappedBlockFeature | SimpleFeature;
 
 export const blockFeatures: { [key: string]: BlockFeature } = {
   unstyled: 'p',
@@ -23,4 +23,13 @@ export const blockFeatures: { [key: string]: BlockFeature } = {
   ['header-five']: 'h5',
   ['header-six']: 'h6',
   blockquote: 'blockquote',
+};
+
+export const styleFeatures: { [key: string]: SimpleFeature } = {
+  BOLD: 'strong',
+  ITALIC: 'em',
+  SUPERSCRIPT: 'sup',
+  SUBSCRIPT: 'sub',
+  STRIKETHRU: 's',
+  CODE: 'code',
 };
