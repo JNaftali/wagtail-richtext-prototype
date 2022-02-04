@@ -1,9 +1,8 @@
 import { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
 import RichText from '../components/RichText';
-import { contentState } from '../example';
 
 export default function Page({ wagtail }: { wagtail: any }) {
-  return <RichText data={contentState} />;
+  return <RichText data={wagtail.text} />;
 }
 
 export async function getServerSideProps(
