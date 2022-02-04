@@ -33,3 +33,27 @@ export const styleFeatures: { [key: string]: SimpleFeature } = {
   STRIKETHRU: 's',
   CODE: 'code',
 };
+
+export type Entity = string | React.FC<{ data: any }>;
+
+export const entityFeatures: { [type: string]: Entity } = {
+  HORIZONTAL_RULE: 'hr',
+  IMAGE: ImageComponent,
+};
+
+interface ImageProps {
+  id: string;
+  src: string;
+  alt: string;
+  format: 'fullwidth'; // TODO: There are other types
+}
+
+function ImageComponent({ data }: { data: ImageProps }) {
+  return (
+    <img
+      className={`image image__${data.format}`}
+      src={data.src}
+      alt={data.alt}
+    />
+  );
+}

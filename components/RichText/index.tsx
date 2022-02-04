@@ -1,4 +1,9 @@
-import { blockFeatures, WrappedBlockFeature, styleFeatures } from './features';
+import {
+  blockFeatures,
+  WrappedBlockFeature,
+  styleFeatures,
+  entityFeatures,
+} from './features';
 
 interface EntityRange {
   key: number;
@@ -42,10 +47,23 @@ export default function RichText({ data }: Props) {
   let index = 0;
   while (index < totalBlocks) {
     const currentBlock = blocks[index];
+
+    if (currentBlock.type === 'atomic') {
+      result.push(
+        <AtomicBlock
+          key={currentBlock.key}
+          block={currentBlock}
+          entityMap={entityMap}
+        />,
+      );
+      index += 1;
+      continue;
+    }
+
     const blockFeature = blockFeatures[currentBlock.type];
 
     if (!blockFeature) {
-      result.push(<p key={index}>unimplemented</p>);
+      result.push(<p key={currentBlock.key}>unimplemented</p>);
       index += 1;
       continue;
     }
@@ -183,12 +201,6 @@ function BlockComponent({ block }: { block: Block }) {
           }, textToStyle as any),
         );
         styleIndex += overlappingStyles.length;
-        console.log(
-          characterIndex,
-          style,
-          contentWithBreaks,
-          contentWithBreaksAndStyles,
-        );
       } else {
         const StyleFeature = getFeatureForStyle(style) ?? 'span';
         contentWithBreaksAndStyles.push(
@@ -206,6 +218,30 @@ function BlockComponent({ block }: { block: Block }) {
       {styles.length ? contentWithBreaksAndStyles : contentWithBreaks}
     </BlockComponentType>
   );
+}
+
+function AtomicBlock({
+  block,
+  entityMap,
+}: {
+  block: Block;
+  entityMap: Props['data']['entityMap'];
+}) {
+  const entityKey = block.entityRanges[0]?.key;
+  if (typeof entityKey === 'undefined')
+    throw new Error('weird entity shenanigans');
+  const entity = entityMap[entityKey];
+  if (typeof entity === 'undefined')
+    throw new Error('weird entity shenanigans 2');
+
+  const Feature = entityFeatures[entity.type];
+  if (!Feature) return <p>unknown entity type</p>;
+
+  if (typeof Feature === 'string') {
+    return <Feature />;
+  } else {
+    return <Feature data={entity.data} />;
+  }
 }
 
 /**
