@@ -4,6 +4,7 @@ import {
   styleFeatures,
   entityFeatures,
 } from './features';
+import { createElement as h } from 'react';
 
 interface EntityRange {
   key: number;
@@ -32,10 +33,14 @@ interface Entity {
   data: any;
 }
 
+interface EntityMap {
+  [key: number]: Entity;
+}
+
 interface Props {
   data: {
     blocks: Block[];
-    entityMap: { [key: number]: Entity };
+    entityMap: EntityMap;
   };
 }
 
@@ -74,7 +79,11 @@ export default function RichText({ data }: Props) {
       typeof blockFeature === 'string'
     ) {
       result.push(
-        <BlockComponent key={currentBlock.key} block={currentBlock} />,
+        <BlockComponent
+          key={currentBlock.key}
+          block={currentBlock}
+          entityMap={entityMap}
+        />,
       );
       index += 1;
       continue;
@@ -90,6 +99,7 @@ export default function RichText({ data }: Props) {
       result.push(
         <WrappedBlockComponent
           blocks={listElements}
+          entityMap={entityMap}
           feature={blockFeature}
           key={currentBlock.key}
         />,
@@ -107,10 +117,12 @@ export default function RichText({ data }: Props) {
 
 function WrappedBlockComponent({
   blocks,
+  entityMap,
   feature: { wrapperElement: Wrapper },
   depth = 0,
 }: {
   blocks: Block[];
+  entityMap: EntityMap;
   feature: WrappedBlockFeature;
   depth?: number;
 }) {
@@ -124,7 +136,11 @@ function WrappedBlockComponent({
       throw new Error('unknown or incorrect feature in WrappedBlockComponent');
     if (currentBlock.depth === depth) {
       result.push(
-        <BlockComponent key={currentBlock.key} block={currentBlock} />,
+        <BlockComponent
+          key={currentBlock.key}
+          block={currentBlock}
+          entityMap={entityMap}
+        />,
       );
       index += 1;
     } else {
@@ -135,6 +151,7 @@ function WrappedBlockComponent({
       result.push(
         <WrappedBlockComponent
           blocks={subList}
+          entityMap={entityMap}
           feature={currentFeature}
           depth={depth + 1}
           key={currentBlock.key}
@@ -147,7 +164,13 @@ function WrappedBlockComponent({
   return <Wrapper>{result}</Wrapper>;
 }
 
-function BlockComponent({ block }: { block: Block }) {
+function BlockComponent({
+  block,
+  entityMap,
+}: {
+  block: Block;
+  entityMap: EntityMap;
+}) {
   const feature = getFeatureForBlock(block) ?? 'p';
 
   const BlockComponentType =
@@ -160,7 +183,9 @@ function BlockComponent({ block }: { block: Block }) {
     .flatMap((x, index) => [x, <br key={index} />])
     .slice(0, -1);
 
-  const styles = block.inlineStyleRanges;
+  const styles = [...block.inlineStyleRanges, ...block.entityRanges].sort(
+    (a, b) => (a.offset > b.offset ? 1 : -1),
+  );
   const contentWithBreaksAndStyles: any[] = [];
 
   if (styles) {
@@ -192,22 +217,61 @@ function BlockComponent({ block }: { block: Block }) {
         // wrap the styles around each other
         contentWithBreaksAndStyles.push(
           overlappingStyles.reduce((result, style) => {
-            const StyleFeature = getFeatureForStyle(style) ?? 'span';
-            return (
-              <StyleFeature key={style.offset + style.style}>
-                {result}
-              </StyleFeature>
-            );
+            if ('style' in style) {
+              const StyleFeature = getFeatureForStyle(style) ?? 'span';
+              return (
+                <StyleFeature key={style.offset + style.style}>
+                  {result}
+                </StyleFeature>
+              );
+            } else {
+              const entity = entityMap[style.key];
+              const EntityFeature = getFeatureForEntity(entity) ?? 'span';
+              if (typeof EntityFeature === 'string') {
+                contentWithBreaksAndStyles.push(
+                  h(
+                    EntityFeature,
+                    { key: entity.type + style.key },
+                    textToStyle,
+                  ), // why can I not typescript this correctly
+                );
+              } else {
+                return (
+                  <EntityFeature
+                    key={entity.type + style.key}
+                    data={entity.data}
+                  >
+                    {result}
+                  </EntityFeature>
+                );
+              }
+            }
           }, textToStyle as any),
         );
         styleIndex += overlappingStyles.length;
       } else {
-        const StyleFeature = getFeatureForStyle(style) ?? 'span';
-        contentWithBreaksAndStyles.push(
-          <StyleFeature key={style.offset + style.style}>
-            {textToStyle}
-          </StyleFeature>,
-        );
+        if ('style' in style) {
+          const StyleFeature = getFeatureForStyle(style) ?? 'span';
+          contentWithBreaksAndStyles.push(
+            <StyleFeature key={style.offset + style.style}>
+              {textToStyle}
+            </StyleFeature>,
+          );
+        } else {
+          const entity = entityMap[style.key];
+          const EntityFeature = getFeatureForEntity(entity) ?? 'span';
+          if (typeof EntityFeature === 'string') {
+            contentWithBreaksAndStyles.push(
+              h(EntityFeature, { key: entity.type + style.key }, textToStyle), // why can I not typescript this correctly
+            );
+          } else {
+            contentWithBreaksAndStyles.push(
+              <EntityFeature key={entity.type + style.key} data={entity.data}>
+                {textToStyle}
+              </EntityFeature>,
+            );
+          }
+        }
         styleIndex += 1;
       }
     }
@@ -225,7 +289,7 @@ function AtomicBlock({
   entityMap,
 }: {
   block: Block;
-  entityMap: Props['data']['entityMap'];
+  entityMap: EntityMap;
 }) {
   const entityKey = block.entityRanges[0]?.key;
   if (typeof entityKey === 'undefined')
@@ -234,7 +298,7 @@ function AtomicBlock({
   if (typeof entity === 'undefined')
     throw new Error('weird entity shenanigans 2');
 
-  const Feature = entityFeatures[entity.type];
+  const Feature = getFeatureForEntity(entity);
   if (!Feature) return <p>unknown entity type</p>;
 
   if (typeof Feature === 'string') {
@@ -285,6 +349,10 @@ function getFeatureForBlock(block: Block) {
 
 function getFeatureForStyle(style: InlineStyleRange) {
   return styleFeatures[style.style];
+}
+
+function getFeatureForEntity(entity: Entity) {
+  return entityFeatures[entity.type];
 }
 
 function pickUntil<T>(ary: T[], predicate: (item: T) => boolean) {

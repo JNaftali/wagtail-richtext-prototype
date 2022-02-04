@@ -30,7 +30,7 @@ export const styleFeatures: { [key: string]: SimpleFeature } = {
   ITALIC: 'em',
   SUPERSCRIPT: 'sup',
   SUBSCRIPT: 'sub',
-  STRIKETHRU: 's',
+  STRIKETHROUGH: 's',
   CODE: 'code',
 };
 
@@ -39,6 +39,7 @@ export type Entity = string | React.FC<{ data: any }>;
 export const entityFeatures: { [type: string]: Entity } = {
   HORIZONTAL_RULE: 'hr',
   IMAGE: ImageComponent,
+  LINK: LinkComponent,
 };
 
 interface ImageProps {
@@ -56,4 +57,8 @@ function ImageComponent({ data }: { data: ImageProps }) {
       alt={data.alt}
     />
   );
+}
+
+function LinkComponent({ data, ...rest }: { data: { url: string } }) {
+  return <a href={data.url} {...rest} />;
 }
