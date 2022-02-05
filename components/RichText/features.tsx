@@ -1,10 +1,12 @@
-export type SimpleFeature = string | React.FC;
+import { FullBlock } from './types';
+
+type BlockComponent = React.FC<{ block: FullBlock }>;
 export interface WrappedBlockFeature {
-  wrapperElement: React.FC | string;
-  contentElement: React.FC | string;
+  wrapperElement: React.FC<{ depth: number }> | string;
+  contentElement: BlockComponent | string;
 }
 
-export type BlockFeature = WrappedBlockFeature | SimpleFeature;
+export type BlockFeature = WrappedBlockFeature | string | BlockComponent;
 
 export const blockFeatures: { [key: string]: BlockFeature } = {
   unstyled: 'p',
@@ -28,18 +30,15 @@ export const blockFeatures: { [key: string]: BlockFeature } = {
       <code>{children}</code>
     </pre>
   ),
-  ['example-delete']: () => null,
-  ['example-discard']: ({ children }) => <>{children}</>,
 };
 
-export const styleFeatures: { [key: string]: SimpleFeature } = {
+export const styleFeatures: { [key: string]: string | React.FC } = {
   BOLD: 'strong',
   ITALIC: 'em',
   SUPERSCRIPT: 'sup',
   SUBSCRIPT: 'sub',
   STRIKETHROUGH: 's',
   CODE: 'code',
-  KBD: 'kbd',
 };
 
 export type Entity = string | React.FC<{ data: any }>;

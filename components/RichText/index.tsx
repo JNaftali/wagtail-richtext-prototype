@@ -5,42 +5,18 @@ import {
   useCallback,
   useContext,
 } from 'react';
-
-interface EntityRange {
-  key: number;
-  offset: number;
-  length: number;
-}
-
-interface InlineStyleRange {
-  offset: number;
-  length: number;
-  style: string;
-}
-
-interface Block {
-  depth?: number;
-  entityRanges?: EntityRange[];
-  inlineStyleRanges?: InlineStyleRange[];
-  key: string;
-  text: string;
-  type: string;
-}
-
-interface Entity {
-  // mutability: 'MUTABLE' | 'IMMUTABLE';
-  mutability: string; // we don't use this anyway
-  type: string;
-  data: any;
-}
-
-interface EntityMap {
-  [key: number]: Entity;
-}
+import {
+  Block,
+  Entity,
+  EntityMap,
+  EntityRange,
+  FullBlock,
+  InlineStyleRange,
+} from './types';
 
 interface Props {
   data: {
-    blocks: (Block | { text: string })[];
+    blocks: Block[];
     entityMap: EntityMap;
   };
   features?: typeof defaultFeatures;
@@ -96,7 +72,7 @@ export default function RichText({ data, features = defaultFeatures }: Props) {
       // Grab all elements wrapped in the same list
       const listElements = pickUntil(
         // Safe to ignore elements that are just text because those (by definition) aren't part of lists
-        blocks.slice(index) as Block[],
+        blocks.slice(index) as FullBlock[],
         (block) =>
           block.type !== currentBlock.type && getBlockDepth(block) === 0,
       );
@@ -130,7 +106,13 @@ export default function RichText({ data, features = defaultFeatures }: Props) {
 
 function useGetBlockFeature() {
   const features = useContext(context).features.blocks;
-  return useCallback((block: Block) => features[block.type], [features]);
+  return useCallback(
+    (block: Block) => {
+      if (!('type' in block)) return 'p';
+      return features[block.type] ?? 'div';
+    },
+    [features],
+  );
 }
 
 function useGetStyleFeature() {
@@ -159,7 +141,7 @@ function WrappedBlockComponent({
   feature: { wrapperElement: Wrapper },
   depth = 0,
 }: {
-  blocks: Block[];
+  blocks: FullBlock[];
   feature: WrappedBlockFeature;
   depth?: number;
 }) {
@@ -196,7 +178,7 @@ function WrappedBlockComponent({
     }
   }
 
-  return <Wrapper>{result}</Wrapper>;
+  return <Wrapper depth={depth}>{result}</Wrapper>;
 }
 
 function BlockComponent({ block }: { block: Block }) {
@@ -204,12 +186,6 @@ function BlockComponent({ block }: { block: Block }) {
   const getFeatureForStyle = useGetStyleFeature();
   const getEntity = useGetEntity();
   const getFeatureForEntity = useGetEntityFeature();
-  const feature = getFeatureForBlock(block) ?? 'div';
-
-  const BlockComponentType =
-    typeof feature === 'string' || typeof feature === 'function'
-      ? feature
-      : feature.contentElement;
 
   const content = block.text.split('\n');
   const contentWithBreaks = content
@@ -217,8 +193,8 @@ function BlockComponent({ block }: { block: Block }) {
     .slice(0, -1);
 
   const styles = [
-    ...(block.inlineStyleRanges ?? []),
-    ...(block.entityRanges ?? []),
+    ...(('inlineStyleRanges' in block ? block.inlineStyleRanges : null) ?? []),
+    ...(('entityRanges' in block ? block.entityRanges : null) ?? []),
   ].sort((a, b) => (a.offset > b.offset ? 1 : -1));
   const contentWithBreaksAndStyles: any[] = [];
 
@@ -311,14 +287,26 @@ function BlockComponent({ block }: { block: Block }) {
     }
     contentWithBreaksAndStyles.push(contentWithBreaks);
   }
-  return (
-    <BlockComponentType>
-      {styles.length ? contentWithBreaksAndStyles : contentWithBreaks}
-    </BlockComponentType>
-  );
+
+  const children = styles.length
+    ? contentWithBreaksAndStyles
+    : contentWithBreaks;
+
+  const feature = getFeatureForBlock(block);
+  if (typeof feature === 'string') {
+    return h(feature, {}, children);
+  } else {
+    const BlockComponentType =
+      typeof feature === 'function' ? feature : feature.contentElement;
+    return (
+      <BlockComponentType block={block as FullBlock}>
+        {children}
+      </BlockComponentType>
+    );
+  }
 }
 
-function AtomicBlock({ block }: { block: Block }) {
+function AtomicBlock({ block }: { block: FullBlock }) {
   const getEntity = useGetEntity();
   const getFeatureForEntity = useGetEntityFeature();
 
