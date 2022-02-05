@@ -40,7 +40,6 @@ export const styleFeatures: { [key: string]: SimpleFeature } = {
   STRIKETHROUGH: 's',
   CODE: 'code',
   KBD: 'kbd',
-  HIGHLIGHT: 'strong',
 };
 
 export type Entity = string | React.FC<{ data: any }>;
@@ -78,3 +77,9 @@ function EmbedComponent({ data, ...rest }: { data: { html: string } }) {
   // return <p>Embed suppressed because console errors are annoying</p>;
   return <div {...rest} dangerouslySetInnerHTML={{ __html: data.html }} />;
 }
+
+export const defaultFeatures = {
+  blocks: blockFeatures,
+  styles: styleFeatures,
+  entities: entityFeatures,
+};

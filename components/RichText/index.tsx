@@ -1,11 +1,10 @@
+import { WrappedBlockFeature, defaultFeatures } from './features';
 import {
-  blockFeatures,
-  WrappedBlockFeature,
-  styleFeatures,
-  entityFeatures,
-} from './features';
-import { createElement as h } from 'react';
-import { resourceLimits } from 'worker_threads';
+  createContext,
+  createElement as h,
+  useCallback,
+  useContext,
+} from 'react';
 
 interface EntityRange {
   key: number;
@@ -44,9 +43,15 @@ interface Props {
     blocks: (Block | { text: string })[];
     entityMap: EntityMap;
   };
+  features?: typeof defaultFeatures;
 }
 
-export default function RichText({ data }: Props) {
+const context = createContext<{
+  entityMap: EntityMap;
+  features: typeof defaultFeatures;
+}>({ entityMap: {}, features: defaultFeatures });
+
+export default function RichText({ data, features = defaultFeatures }: Props) {
   // result will be a (possible nested) array of jsx elements but I neither know nor care how to type that
   const result: any = [];
   const { blocks, entityMap } = data;
@@ -60,7 +65,6 @@ export default function RichText({ data }: Props) {
         <BlockComponent
           key={index}
           block={{ ...currentBlock, type: 'unstyled', key: index.toString() }}
-          entityMap={entityMap}
         />,
       );
       index += 1;
@@ -68,18 +72,12 @@ export default function RichText({ data }: Props) {
     }
 
     if (currentBlock.type === 'atomic') {
-      result.push(
-        <AtomicBlock
-          key={currentBlock.key}
-          block={currentBlock}
-          entityMap={entityMap}
-        />,
-      );
+      result.push(<AtomicBlock key={currentBlock.key} block={currentBlock} />);
       index += 1;
       continue;
     }
 
-    const blockFeature = blockFeatures[currentBlock.type];
+    const blockFeature = features.blocks[currentBlock.type];
 
     // When there's no wrapper/nesting to worry about, just render the block
     if (
@@ -88,11 +86,7 @@ export default function RichText({ data }: Props) {
       typeof blockFeature === 'undefined'
     ) {
       result.push(
-        <BlockComponent
-          key={currentBlock.key}
-          block={currentBlock}
-          entityMap={entityMap}
-        />,
+        <BlockComponent key={currentBlock.key} block={currentBlock} />,
       );
       index += 1;
       continue;
@@ -110,7 +104,6 @@ export default function RichText({ data }: Props) {
       result.push(
         <WrappedBlockComponent
           blocks={listElements}
-          entityMap={entityMap}
           feature={blockFeature}
           key={currentBlock.key}
         />,
@@ -123,20 +116,55 @@ export default function RichText({ data }: Props) {
     index += 1;
   }
 
-  return result.flat(Infinity);
+  return (
+    <context.Provider
+      value={{
+        entityMap,
+        features,
+      }}
+    >
+      {result.flat(Infinity)}
+    </context.Provider>
+  );
+}
+
+function useGetBlockFeature() {
+  const features = useContext(context).features.blocks;
+  return useCallback((block: Block) => features[block.type], [features]);
+}
+
+function useGetStyleFeature() {
+  const features = useContext(context).features.styles;
+  return useCallback(
+    (style: InlineStyleRange) => features[style.style],
+    [features],
+  );
+}
+
+function useGetEntity() {
+  const entityMap = useContext(context).entityMap;
+  return useCallback(
+    (entityRange: EntityRange) => entityMap[entityRange.key],
+    [entityMap],
+  );
+}
+
+function useGetEntityFeature() {
+  const features = useContext(context).features.entities;
+  return useCallback((entity: Entity) => features[entity.type], [features]);
 }
 
 function WrappedBlockComponent({
   blocks,
-  entityMap,
   feature: { wrapperElement: Wrapper },
   depth = 0,
 }: {
   blocks: Block[];
-  entityMap: EntityMap;
   feature: WrappedBlockFeature;
   depth?: number;
 }) {
+  const getFeatureForBlock = useGetBlockFeature();
+
   const result: any = [];
   let index = 0;
 
@@ -147,11 +175,7 @@ function WrappedBlockComponent({
       throw new Error('unknown or incorrect feature in WrappedBlockComponent');
     if (getBlockDepth(currentBlock) === depth) {
       result.push(
-        <BlockComponent
-          key={currentBlock.key}
-          block={currentBlock}
-          entityMap={entityMap}
-        />,
+        <BlockComponent key={currentBlock.key} block={currentBlock} />,
       );
       index += 1;
     } else {
@@ -163,7 +187,6 @@ function WrappedBlockComponent({
       result.push(
         <WrappedBlockComponent
           blocks={subList}
-          entityMap={entityMap}
           feature={currentFeature}
           depth={depth + 1}
           key={currentBlock.key}
@@ -176,13 +199,11 @@ function WrappedBlockComponent({
   return <Wrapper>{result}</Wrapper>;
 }
 
-function BlockComponent({
-  block,
-  entityMap,
-}: {
-  block: Block;
-  entityMap: EntityMap;
-}) {
+function BlockComponent({ block }: { block: Block }) {
+  const getFeatureForBlock = useGetBlockFeature();
+  const getFeatureForStyle = useGetStyleFeature();
+  const getEntity = useGetEntity();
+  const getFeatureForEntity = useGetEntityFeature();
   const feature = getFeatureForBlock(block) ?? 'div';
 
   const BlockComponentType =
@@ -238,7 +259,7 @@ function BlockComponent({
                 </StyleFeature>
               );
             } else {
-              const entity = entityMap[style.key];
+              const entity = getEntity(style);
               const EntityFeature = getFeatureForEntity(entity) ?? 'span';
               if (typeof EntityFeature === 'string') {
                 contentWithBreaksAndStyles.push(
@@ -271,7 +292,7 @@ function BlockComponent({
             </StyleFeature>,
           );
         } else {
-          const entity = entityMap[style.key];
+          const entity = getEntity(style);
           const EntityFeature = getFeatureForEntity(entity) ?? 'span';
           if (typeof EntityFeature === 'string') {
             contentWithBreaksAndStyles.push(
@@ -297,19 +318,14 @@ function BlockComponent({
   );
 }
 
-function AtomicBlock({
-  block,
-  entityMap,
-}: {
-  block: Block;
-  entityMap: EntityMap;
-}) {
-  const entityKey = block.entityRanges![0]?.key;
-  if (typeof entityKey === 'undefined')
+function AtomicBlock({ block }: { block: Block }) {
+  const getEntity = useGetEntity();
+  const getFeatureForEntity = useGetEntityFeature();
+
+  const entityRange = block.entityRanges![0];
+  if (typeof entityRange === 'undefined')
     throw new Error('weird entity shenanigans');
-  const entity = entityMap[entityKey];
-  if (typeof entity === 'undefined')
-    throw new Error('weird entity shenanigans 2');
+  const entity = getEntity(entityRange);
 
   const Feature = getFeatureForEntity(entity);
   if (!Feature) return <p>unknown entity type</p>;
@@ -359,18 +375,6 @@ function pullCharacters(from: any[], count: number) {
     count -= currentEl.length;
   }
   return result;
-}
-
-function getFeatureForBlock(block: Block) {
-  return blockFeatures[block.type];
-}
-
-function getFeatureForStyle(style: InlineStyleRange) {
-  return styleFeatures[style.style];
-}
-
-function getFeatureForEntity(entity: Entity) {
-  return entityFeatures[entity.type];
 }
 
 function pickUntil<T>(ary: T[], predicate: (item: T) => boolean) {
