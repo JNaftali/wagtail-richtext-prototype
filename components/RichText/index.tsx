@@ -195,7 +195,13 @@ function BlockComponent({ block }: { block: Block }) {
   const styles = [
     ...(('inlineStyleRanges' in block ? block.inlineStyleRanges : null) ?? []),
     ...(('entityRanges' in block ? block.entityRanges : null) ?? []),
-  ].sort((a, b) => (a.offset > b.offset ? 1 : -1));
+  ].sort((a, b) => {
+    if (a.offset !== b.offset) return b.offset - a.offset;
+    if (a.length !== b.length) return b.length - a.length;
+    const aType = 'key' in a ? a.key : a.style;
+    const bType = 'key' in b ? b.key : b.style;
+    return aType.toString().localeCompare(bType.toString());
+  });
   const contentWithBreaksAndStyles: any[] = [];
 
   if (styles) {
