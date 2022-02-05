@@ -69,13 +69,7 @@ interface ImageProps {
 }
 
 function ImageComponent({ data }: { data: ImageProps }) {
-  return (
-    <img
-      className={`image image__${data.format}`}
-      src={data.src}
-      alt={data.alt}
-    />
-  );
+  return <img src={data.src} alt={data.alt} />;
 }
 
 function LinkComponent({

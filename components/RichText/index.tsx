@@ -326,9 +326,19 @@ function AtomicBlock({ block }: { block: FullBlock }) {
   if (!Feature) return <p>unknown entity type</p>;
 
   if (typeof Feature === "string") {
-    return <Feature />;
+    return (
+      <>
+        <Feature />
+        {block.text}
+      </>
+    );
   } else {
-    return <Feature data={entity.data} />;
+    return (
+      <>
+        <Feature data={entity.data} />
+        {block.text}
+      </>
+    );
   }
 }
 
