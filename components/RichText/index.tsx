@@ -178,7 +178,11 @@ function WrappedBlockComponent({
     }
   }
 
-  return <Wrapper depth={depth}>{result}</Wrapper>;
+  if (typeof Wrapper === "string") {
+    return h(Wrapper, {}, result);
+  } else {
+    return <Wrapper depth={depth}>{result}</Wrapper>;
+  }
 }
 
 function BlockComponent({ block }: { block: Block }) {
@@ -300,16 +304,12 @@ function BlockComponent({ block }: { block: Block }) {
     : contentWithBreaks;
 
   const feature = getFeatureForBlock(block);
-  if (typeof feature === "string") {
-    return h(feature, {}, children);
+  const Component =
+    typeof feature === "object" ? feature.contentElement : feature;
+  if (typeof Component === "string") {
+    return h(Component, {}, children);
   } else {
-    const BlockComponentType =
-      typeof feature === "function" ? feature : feature.contentElement;
-    return (
-      <BlockComponentType block={block as FullBlock}>
-        {children}
-      </BlockComponentType>
-    );
+    return <Component block={block as FullBlock}>{children}</Component>;
   }
 }
 
