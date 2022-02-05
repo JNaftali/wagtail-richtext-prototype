@@ -25,20 +25,31 @@ export const blockFeatures: { [key: string]: BlockFeature } = {
   ['header-five']: 'h5',
   ['header-six']: 'h6',
   blockquote: 'blockquote',
-  ['code-block']: ({ children, ...rest }) => (
-    <pre {...rest}>
+  pre: 'pre',
+  ['code-block']: ({ children }) => (
+    <pre>
       <code>{children}</code>
     </pre>
   ),
+  // Below doesn't work in React
+  // atomic: ({ children }) => <>{children}</>,
 };
 
 export const styleFeatures: { [key: string]: string | React.FC } = {
   BOLD: 'strong',
+  CODE: 'code',
   ITALIC: 'em',
+  UNDERLINE: 'u',
+  STRIKETHROUGH: 's',
   SUPERSCRIPT: 'sup',
   SUBSCRIPT: 'sub',
-  STRIKETHROUGH: 's',
-  CODE: 'code',
+  MARK: 'mark',
+  QUOTATION: 'q',
+  SMALL: 'small',
+  SAMPLE: 'samp',
+  INSERT: 'ins',
+  DELETE: 'del',
+  KEYBOARD: 'kbd',
 };
 
 export type Entity = string | React.FC<{ data: any }>;
