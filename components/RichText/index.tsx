@@ -1,10 +1,10 @@
-import { WrappedBlockFeature, defaultFeatures } from './features';
+import { WrappedBlockFeature, defaultFeatures } from "./features";
 import {
   createContext,
   createElement as h,
   useCallback,
   useContext,
-} from 'react';
+} from "react";
 import {
   Block,
   Entity,
@@ -12,7 +12,7 @@ import {
   EntityRange,
   FullBlock,
   InlineStyleRange,
-} from './types';
+} from "./types";
 
 interface Props {
   data: {
@@ -36,18 +36,18 @@ export default function RichText({ data, features = defaultFeatures }: Props) {
   while (index < totalBlocks) {
     const currentBlock = blocks[index];
 
-    if (!('key' in currentBlock)) {
+    if (!("key" in currentBlock)) {
       result.push(
         <BlockComponent
           key={index}
-          block={{ ...currentBlock, type: 'unstyled', key: index.toString() }}
-        />,
+          block={{ ...currentBlock, type: "unstyled", key: index.toString() }}
+        />
       );
       index += 1;
       continue;
     }
 
-    if (currentBlock.type === 'atomic') {
+    if (currentBlock.type === "atomic") {
       result.push(<AtomicBlock key={currentBlock.key} block={currentBlock} />);
       index += 1;
       continue;
@@ -57,24 +57,24 @@ export default function RichText({ data, features = defaultFeatures }: Props) {
 
     // When there's no wrapper/nesting to worry about, just render the block
     if (
-      typeof blockFeature === 'function' ||
-      typeof blockFeature === 'string' ||
-      typeof blockFeature === 'undefined'
+      typeof blockFeature === "function" ||
+      typeof blockFeature === "string" ||
+      typeof blockFeature === "undefined"
     ) {
       result.push(
-        <BlockComponent key={currentBlock.key} block={currentBlock} />,
+        <BlockComponent key={currentBlock.key} block={currentBlock} />
       );
       index += 1;
       continue;
     }
 
-    if ('wrapperElement' in blockFeature) {
+    if ("wrapperElement" in blockFeature) {
       // Grab all elements wrapped in the same list
       const listElements = pickUntil(
         // Safe to ignore elements that are just text because those (by definition) aren't part of lists
         blocks.slice(index) as FullBlock[],
         (block) =>
-          block.type !== currentBlock.type && getBlockDepth(block) === 0,
+          block.type !== currentBlock.type && getBlockDepth(block) === 0
       );
 
       result.push(
@@ -82,7 +82,7 @@ export default function RichText({ data, features = defaultFeatures }: Props) {
           blocks={listElements}
           feature={blockFeature}
           key={currentBlock.key}
-        />,
+        />
       );
       index += listElements.length;
       continue;
@@ -108,10 +108,10 @@ function useGetBlockFeature() {
   const features = useContext(context).features.blocks;
   return useCallback(
     (block: Block) => {
-      if (!('type' in block)) return 'p';
-      return features[block.type] ?? 'div';
+      if (!("type" in block)) return "p";
+      return features[block.type] ?? "div";
     },
-    [features],
+    [features]
   );
 }
 
@@ -119,7 +119,7 @@ function useGetStyleFeature() {
   const features = useContext(context).features.styles;
   return useCallback(
     (style: InlineStyleRange) => features[style.style],
-    [features],
+    [features]
   );
 }
 
@@ -127,7 +127,7 @@ function useGetEntity() {
   const entityMap = useContext(context).entityMap;
   return useCallback(
     (entityRange: EntityRange) => entityMap[entityRange.key],
-    [entityMap],
+    [entityMap]
   );
 }
 
@@ -153,18 +153,18 @@ function WrappedBlockComponent({
   while (index < blocks.length) {
     const currentBlock = blocks[index];
     const currentFeature = getFeatureForBlock(currentBlock);
-    if (typeof currentFeature !== 'object')
-      throw new Error('unknown or incorrect feature in WrappedBlockComponent');
+    if (typeof currentFeature !== "object")
+      throw new Error("unknown or incorrect feature in WrappedBlockComponent");
     if (getBlockDepth(currentBlock) === depth) {
       result.push(
-        <BlockComponent key={currentBlock.key} block={currentBlock} />,
+        <BlockComponent key={currentBlock.key} block={currentBlock} />
       );
       index += 1;
     } else {
       const subList = pickUntil(
         blocks.slice(index),
         (block) =>
-          getBlockDepth(block) === depth || block.type !== currentBlock.type,
+          getBlockDepth(block) === depth || block.type !== currentBlock.type
       );
       result.push(
         <WrappedBlockComponent
@@ -172,7 +172,7 @@ function WrappedBlockComponent({
           feature={currentFeature}
           depth={depth + 1}
           key={currentBlock.key}
-        />,
+        />
       );
       index += subList.length;
     }
@@ -187,20 +187,20 @@ function BlockComponent({ block }: { block: Block }) {
   const getEntity = useGetEntity();
   const getFeatureForEntity = useGetEntityFeature();
 
-  const content = block.text.split('\n');
+  const content = block.text.split("\n");
   const contentWithBreaks = content
     .flatMap((x, index) => [x, <br key={index} />])
     .slice(0, -1);
 
   const styles = [
-    ...(('inlineStyleRanges' in block ? block.inlineStyleRanges : null) ?? []),
-    ...(('entityRanges' in block ? block.entityRanges : null) ?? []),
+    ...(("inlineStyleRanges" in block ? block.inlineStyleRanges : null) ?? []),
+    ...(("entityRanges" in block ? block.entityRanges : null) ?? []),
   ].sort((a, b) => {
     if (a.offset !== b.offset) return b.offset - a.offset;
     if (a.length !== b.length) return b.length - a.length;
-    const aType = 'key' in a ? a.key : a.style;
-    const bType = 'key' in b ? b.key : b.style;
-    return aType.toString().localeCompare(bType.toString());
+    const aType = "key" in a ? a.key : a.style;
+    const bType = "key" in b ? b.key : b.style;
+    return bType.toString().localeCompare(aType.toString());
   });
   const contentWithBreaksAndStyles: any[] = [];
 
@@ -213,7 +213,7 @@ function BlockComponent({ block }: { block: Block }) {
       if (style.offset > characterIndex) {
         // Move unstyled characters to the "done" pile
         contentWithBreaksAndStyles.push(
-          pullCharacters(contentWithBreaks, style.offset - characterIndex),
+          pullCharacters(contentWithBreaks, style.offset - characterIndex)
         );
         characterIndex = style.offset;
       }
@@ -224,7 +224,7 @@ function BlockComponent({ block }: { block: Block }) {
       const overlappingStyles = styles
         .slice(styleIndex + 1)
         .filter(
-          (otherStyle) => otherStyle.offset < style.offset + style.length,
+          (otherStyle) => otherStyle.offset < style.offset + style.length
         );
       if (overlappingStyles.length) {
         // We have multiple overlapping styles!
@@ -233,8 +233,8 @@ function BlockComponent({ block }: { block: Block }) {
         // wrap the styles around each other
         contentWithBreaksAndStyles.push(
           overlappingStyles.reduce((result, style) => {
-            if ('style' in style) {
-              const StyleFeature = getFeatureForStyle(style) ?? 'span';
+            if ("style" in style) {
+              const StyleFeature = getFeatureForStyle(style) ?? "span";
               return (
                 <StyleFeature key={style.offset + style.style}>
                   {result}
@@ -242,14 +242,14 @@ function BlockComponent({ block }: { block: Block }) {
               );
             } else {
               const entity = getEntity(style);
-              const EntityFeature = getFeatureForEntity(entity) ?? 'span';
-              if (typeof EntityFeature === 'string') {
+              const EntityFeature = getFeatureForEntity(entity) ?? "span";
+              if (typeof EntityFeature === "string") {
                 contentWithBreaksAndStyles.push(
                   h(
                     EntityFeature,
                     { key: entity.type + style.key },
-                    textToStyle,
-                  ), // why can I not typescript this correctly
+                    textToStyle
+                  ) // why can I not typescript this correctly
                 );
               } else {
                 return (
@@ -262,29 +262,29 @@ function BlockComponent({ block }: { block: Block }) {
                 );
               }
             }
-          }, textToStyle as any),
+          }, textToStyle as any)
         );
         styleIndex += overlappingStyles.length;
       } else {
-        if ('style' in style) {
-          const StyleFeature = getFeatureForStyle(style) ?? 'span';
+        if ("style" in style) {
+          const StyleFeature = getFeatureForStyle(style) ?? "span";
           contentWithBreaksAndStyles.push(
             <StyleFeature key={style.offset + style.style}>
               {textToStyle}
-            </StyleFeature>,
+            </StyleFeature>
           );
         } else {
           const entity = getEntity(style);
-          const EntityFeature = getFeatureForEntity(entity) ?? 'span';
-          if (typeof EntityFeature === 'string') {
+          const EntityFeature = getFeatureForEntity(entity) ?? "span";
+          if (typeof EntityFeature === "string") {
             contentWithBreaksAndStyles.push(
-              h(EntityFeature, { key: entity.type + style.key }, textToStyle), // why can I not typescript this correctly
+              h(EntityFeature, { key: entity.type + style.key }, textToStyle) // why can I not typescript this correctly
             );
           } else {
             contentWithBreaksAndStyles.push(
               <EntityFeature key={entity.type + style.key} data={entity.data}>
                 {textToStyle}
-              </EntityFeature>,
+              </EntityFeature>
             );
           }
         }
@@ -299,11 +299,11 @@ function BlockComponent({ block }: { block: Block }) {
     : contentWithBreaks;
 
   const feature = getFeatureForBlock(block);
-  if (typeof feature === 'string') {
+  if (typeof feature === "string") {
     return h(feature, {}, children);
   } else {
     const BlockComponentType =
-      typeof feature === 'function' ? feature : feature.contentElement;
+      typeof feature === "function" ? feature : feature.contentElement;
     return (
       <BlockComponentType block={block as FullBlock}>
         {children}
@@ -317,14 +317,14 @@ function AtomicBlock({ block }: { block: FullBlock }) {
   const getFeatureForEntity = useGetEntityFeature();
 
   const entityRange = block.entityRanges![0];
-  if (typeof entityRange === 'undefined')
-    throw new Error('weird entity shenanigans');
+  if (typeof entityRange === "undefined")
+    throw new Error("weird entity shenanigans");
   const entity = getEntity(entityRange);
 
   const Feature = getFeatureForEntity(entity);
   if (!Feature) return <p>unknown entity type</p>;
 
-  if (typeof Feature === 'string') {
+  if (typeof Feature === "string") {
     return <Feature />;
   } else {
     return <Feature data={entity.data} />;
@@ -332,7 +332,7 @@ function AtomicBlock({ block }: { block: FullBlock }) {
 }
 
 function getBlockDepth(block: Block | { text: string }) {
-  if ('depth' in block) return block.depth ?? 0;
+  if ("depth" in block) return block.depth ?? 0;
   else return 0;
 }
 
@@ -349,7 +349,7 @@ function pullCharacters(from: any[], count: number) {
     const currentEl = from.shift();
 
     // If it's a <br /> element just move it - TODO test if incrementing the count is actually correct and if this code ever runs
-    if (typeof currentEl !== 'string') {
+    if (typeof currentEl !== "string") {
       result.push(currentEl);
       // 2 chars = \n
       count -= 2;
