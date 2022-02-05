@@ -1,4 +1,4 @@
-import { FullBlock } from './types';
+import { FullBlock } from "./types";
 
 type BlockComponent = React.FC<{ block: FullBlock }>;
 export interface WrappedBlockFeature {
@@ -9,24 +9,24 @@ export interface WrappedBlockFeature {
 export type BlockFeature = WrappedBlockFeature | string | BlockComponent;
 
 export const blockFeatures: { [key: string]: BlockFeature } = {
-  unstyled: 'p',
-  ['ordered-list-item']: {
-    wrapperElement: 'ol',
-    contentElement: 'li',
+  unstyled: "p",
+  ["ordered-list-item"]: {
+    wrapperElement: "ol",
+    contentElement: "li",
   },
-  ['unordered-list-item']: {
-    wrapperElement: 'ul',
-    contentElement: 'li',
+  ["unordered-list-item"]: {
+    wrapperElement: "ul",
+    contentElement: "li",
   },
-  ['header-one']: 'h1',
-  ['header-two']: 'h2',
-  ['header-three']: 'h3',
-  ['header-four']: 'h4',
-  ['header-five']: 'h5',
-  ['header-six']: 'h6',
-  blockquote: 'blockquote',
-  pre: 'pre',
-  ['code-block']: ({ children }) => (
+  ["header-one"]: "h1",
+  ["header-two"]: "h2",
+  ["header-three"]: "h3",
+  ["header-four"]: "h4",
+  ["header-five"]: "h5",
+  ["header-six"]: "h6",
+  blockquote: "blockquote",
+  pre: "pre",
+  ["code-block"]: ({ children }) => (
     <pre>
       <code>{children}</code>
     </pre>
@@ -36,26 +36,26 @@ export const blockFeatures: { [key: string]: BlockFeature } = {
 };
 
 export const styleFeatures: { [key: string]: string | React.FC } = {
-  BOLD: 'strong',
-  CODE: 'code',
-  ITALIC: 'em',
-  UNDERLINE: 'u',
-  STRIKETHROUGH: 's',
-  SUPERSCRIPT: 'sup',
-  SUBSCRIPT: 'sub',
-  MARK: 'mark',
-  QUOTATION: 'q',
-  SMALL: 'small',
-  SAMPLE: 'samp',
-  INSERT: 'ins',
-  DELETE: 'del',
-  KEYBOARD: 'kbd',
+  BOLD: "strong",
+  CODE: "code",
+  ITALIC: "em",
+  UNDERLINE: "u",
+  STRIKETHROUGH: "s",
+  SUPERSCRIPT: "sup",
+  SUBSCRIPT: "sub",
+  MARK: "mark",
+  QUOTATION: "q",
+  SMALL: "small",
+  SAMPLE: "samp",
+  INSERT: "ins",
+  DELETE: "del",
+  KEYBOARD: "kbd",
 };
 
 export type Entity = string | React.FC<{ data: any }>;
 
 export const entityFeatures: { [type: string]: Entity } = {
-  HORIZONTAL_RULE: 'hr',
+  HORIZONTAL_RULE: "hr",
   IMAGE: ImageComponent,
   LINK: LinkComponent,
   EMBED: EmbedComponent,
@@ -65,7 +65,7 @@ interface ImageProps {
   id: string;
   src: string;
   alt: string;
-  format: 'fullwidth'; // TODO: There are other types
+  format: "fullwidth"; // TODO: There are other types
 }
 
 function ImageComponent({ data }: { data: ImageProps }) {
@@ -78,8 +78,13 @@ function ImageComponent({ data }: { data: ImageProps }) {
   );
 }
 
-function LinkComponent({ data, ...rest }: { data: { url: string } }) {
-  return <a href={data.url} {...rest} />;
+function LinkComponent({
+  data: { url, ...otherData },
+  ...rest
+}: {
+  data: { url: string };
+}) {
+  return <a href={url} {...otherData} {...rest} />;
 }
 
 function EmbedComponent({ data, ...rest }: { data: { html: string } }) {

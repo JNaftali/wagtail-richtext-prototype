@@ -195,8 +195,9 @@ function BlockComponent({ block }: { block: Block }) {
   const styles = [
     ...(("inlineStyleRanges" in block ? block.inlineStyleRanges : null) ?? []),
     ...(("entityRanges" in block ? block.entityRanges : null) ?? []),
-  ].sort((a, b) => {
-    if (a.offset !== b.offset) return b.offset - a.offset;
+  ];
+  styles.sort((a, b) => {
+    if (a.offset !== b.offset) return a.offset - b.offset;
     if (a.length !== b.length) return b.length - a.length;
     const aType = "key" in a ? a.key : a.style;
     const bType = "key" in b ? b.key : b.style;
@@ -204,7 +205,7 @@ function BlockComponent({ block }: { block: Block }) {
   });
   const contentWithBreaksAndStyles: any[] = [];
 
-  if (styles) {
+  if (styles?.length) {
     let characterIndex = 0;
     let styleIndex = 0;
     while (styleIndex < styles.length) {
@@ -247,7 +248,7 @@ function BlockComponent({ block }: { block: Block }) {
                 contentWithBreaksAndStyles.push(
                   h(
                     EntityFeature,
-                    { key: entity.type + style.key },
+                    { key: entity.type + style.key, ...entity.data },
                     textToStyle
                   ) // why can I not typescript this correctly
                 );
