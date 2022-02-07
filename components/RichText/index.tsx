@@ -1,5 +1,5 @@
 import { WrappedBlockFeature, defaultFeatures } from "./features";
-import {
+import React, {
   createContext,
   createElement as h,
   useCallback,
@@ -118,7 +118,7 @@ function useGetBlockFeature() {
 function useGetStyleFeature() {
   const features = useContext(context).features.styles;
   return useCallback(
-    (style: InlineStyleRange) => features[style.style],
+    (style: InlineStyleRange) => features[style.style] ?? "span",
     [features]
   );
 }
@@ -133,7 +133,10 @@ function useGetEntity() {
 
 function useGetEntityFeature() {
   const features = useContext(context).features.entities;
-  return useCallback((entity: Entity) => features[entity.type], [features]);
+  return useCallback(
+    (entity: Entity) => features[entity.type] ?? "span",
+    [features]
+  );
 }
 
 function WrappedBlockComponent({
@@ -185,132 +188,142 @@ function WrappedBlockComponent({
   }
 }
 
+const compositeDecorators = [
+  {
+    strategy: /\\n/g,
+    component: () => <br />,
+  },
+];
+
+type CompositeRange = {
+  compositeKey: `compositedecorator${number}${number}`;
+  offset: number;
+  length: number;
+  component: string | React.FC;
+};
+
 function BlockComponent({ block }: { block: Block }) {
   const getFeatureForBlock = useGetBlockFeature();
-  const getFeatureForStyle = useGetStyleFeature();
-  const getEntity = useGetEntity();
-  const getFeatureForEntity = useGetEntityFeature();
+  let text = block.text;
 
-  const content = block.text.split("\n");
-  const contentWithBreaks = content
-    .flatMap((x, index) => [x, <br key={index} />])
-    .slice(0, -1);
-
-  const styles = [
-    ...(("inlineStyleRanges" in block ? block.inlineStyleRanges : null) ?? []),
-    ...(("entityRanges" in block ? block.entityRanges : null) ?? []),
-  ];
-  styles.sort((a, b) => {
+  const compositeRanges = compositeDecorators.flatMap(
+    ({ strategy, component }, index1) => {
+      return [...text.matchAll(strategy)].map(
+        (match, index2): CompositeRange => ({
+          compositeKey: `compositedecorator${index1}${index2}`,
+          offset: match.index ?? 0, // When can this be undefined? I don't know
+          length: match[0].length,
+          component,
+        })
+      );
+    }
+  );
+  const styleRanges =
+    "inlineStyleRanges" in block && block.inlineStyleRanges
+      ? block.inlineStyleRanges
+      : [];
+  const entityRanges =
+    "entityRanges" in block && block.entityRanges ? block.entityRanges : [];
+  const ranges = [...compositeRanges, ...styleRanges, ...entityRanges];
+  ranges.sort((a, b) => {
     if (a.offset !== b.offset) return a.offset - b.offset;
     if (a.length !== b.length) return b.length - a.length;
-    const aType = "key" in a ? a.key : a.style;
-    const bType = "key" in b ? b.key : b.style;
+    const aType =
+      "key" in a ? a.key : "compositeKey" in a ? a.compositeKey : a.style;
+    const bType =
+      "key" in b ? b.key : "compositeKey" in b ? b.compositeKey : b.style;
     return bType.toString().localeCompare(aType.toString());
   });
-  const contentWithBreaksAndStyles: any[] = [];
-
-  if (styles?.length) {
-    let characterIndex = 0;
-    let styleIndex = 0;
-    while (styleIndex < styles.length) {
-      const style = styles[styleIndex];
-
-      if (style.offset > characterIndex) {
-        // Move unstyled characters to the "done" pile
-        contentWithBreaksAndStyles.push(
-          pullCharacters(contentWithBreaks, style.offset - characterIndex)
-        );
-        characterIndex = style.offset;
-      }
-
-      const textToStyle = pullCharacters(contentWithBreaks, style.length);
-      characterIndex += style.length;
-
-      const overlappingStyles = styles
-        .slice(styleIndex + 1)
-        .filter(
-          (otherStyle) => otherStyle.offset < style.offset + style.length
-        );
-      if (overlappingStyles.length) {
-        // We have multiple overlapping styles!
-        // add the style element to the front of the array of styles
-        overlappingStyles.unshift(style);
-        // wrap the styles around each other
-        contentWithBreaksAndStyles.push(
-          overlappingStyles.reduce((result, style) => {
-            if ("style" in style) {
-              const StyleFeature = getFeatureForStyle(style) ?? "span";
-              return (
-                <StyleFeature key={style.offset + style.style}>
-                  {result}
-                </StyleFeature>
-              );
-            } else {
-              const entity = getEntity(style);
-              const EntityFeature = getFeatureForEntity(entity) ?? "span";
-              if (typeof EntityFeature === "string") {
-                contentWithBreaksAndStyles.push(
-                  h(
-                    EntityFeature,
-                    { key: entity.type + style.key, ...entity.data },
-                    textToStyle
-                  ) // why can I not typescript this correctly
-                );
-              } else {
-                return (
-                  <EntityFeature
-                    key={entity.type + style.key}
-                    data={entity.data}
-                  >
-                    {result}
-                  </EntityFeature>
-                );
-              }
-            }
-          }, textToStyle as any)
-        );
-        styleIndex += overlappingStyles.length;
-      } else {
-        if ("style" in style) {
-          const StyleFeature = getFeatureForStyle(style) ?? "span";
-          contentWithBreaksAndStyles.push(
-            <StyleFeature key={style.offset + style.style}>
-              {textToStyle}
-            </StyleFeature>
-          );
-        } else {
-          const entity = getEntity(style);
-          const EntityFeature = getFeatureForEntity(entity) ?? "span";
-          if (typeof EntityFeature === "string") {
-            contentWithBreaksAndStyles.push(
-              h(EntityFeature, { key: entity.type + style.key }, textToStyle) // why can I not typescript this correctly
-            );
-          } else {
-            contentWithBreaksAndStyles.push(
-              <EntityFeature key={entity.type + style.key} data={entity.data}>
-                {textToStyle}
-              </EntityFeature>
-            );
-          }
-        }
-        styleIndex += 1;
-      }
-    }
-    contentWithBreaksAndStyles.push(contentWithBreaks);
-  }
-
-  const children = styles.length
-    ? contentWithBreaksAndStyles
-    : contentWithBreaks;
 
   const feature = getFeatureForBlock(block);
   const Component =
     typeof feature === "object" ? feature.contentElement : feature;
   if (typeof Component === "string") {
-    return h(Component, {}, children);
+    return h(Component, {}, <StyledText ranges={ranges} text={text} />);
   } else {
-    return <Component block={block as FullBlock}>{children}</Component>;
+    return (
+      <Component block={block as FullBlock}>
+        <StyledText ranges={ranges} text={text} />
+      </Component>
+    );
   }
+}
+
+type TextRange = CompositeRange | InlineStyleRange | EntityRange;
+
+function StyledText({
+  text,
+  ranges,
+  characterIndex = 0,
+}: {
+  text: string;
+  ranges: TextRange[];
+  characterIndex?: number;
+}) {
+  const getFeatureForStyle = useGetStyleFeature();
+  const getEntity = useGetEntity();
+  const getFeatureForEntity = useGetEntityFeature();
+
+  let rangeIndex = 0;
+  const children: any[] = [];
+  while (rangeIndex < ranges.length) {
+    const currentRange = ranges[rangeIndex];
+    // The ranges array is sorted, so any chatacters earlier than the offset of the current range are plain
+    if (currentRange.offset > characterIndex) {
+      // Move plain characters to the "done" pile
+      const moveUntil = currentRange.offset - characterIndex;
+      children.push(text.slice(0, moveUntil));
+      text = text.slice(moveUntil);
+      characterIndex += moveUntil;
+    }
+
+    // the previous bit should have already corrected for characterIndex/currentRange.offset such that they're always the same
+    const rangeText = text.slice(0, currentRange.length);
+    text = text.slice(currentRange.length);
+
+    // If there are no overlapping ranges, the recursive call will just return the straight text
+    const overlappingRanges = pickUntil(
+      ranges.slice(rangeIndex + 1),
+      (range) => range.offset > currentRange.offset + currentRange.length
+    );
+    rangeIndex += overlappingRanges.length + 1;
+    const textChildren = (
+      <StyledText
+        text={rangeText}
+        ranges={overlappingRanges}
+        characterIndex={characterIndex}
+      />
+    );
+    characterIndex += rangeText.length;
+
+    if ("key" in currentRange) {
+      // we're dealing with an entity
+      const entity = getEntity(currentRange);
+      const Feature = getFeatureForEntity(entity);
+      if (typeof Feature === "string")
+        children.push(h(Feature, {}, textChildren));
+      else
+        children.push(
+          <Feature data={entity.data} key={"entity" + currentRange.key}>
+            {textChildren}
+          </Feature>
+        );
+    } else if ("style" in currentRange) {
+      const Feature = getFeatureForStyle(currentRange);
+      children.push(
+        <Feature key={currentRange.style + characterIndex}>
+          {textChildren}
+        </Feature>
+      );
+    } else {
+      const Feature = currentRange.component;
+      children.push(
+        <Feature key={currentRange.compositeKey}>{textChildren}</Feature>
+      );
+    }
+  }
+  children.push(text);
+  return <>{children}</>;
 }
 
 function AtomicBlock({ block }: { block: FullBlock }) {
