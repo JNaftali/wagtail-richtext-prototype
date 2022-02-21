@@ -1,6 +1,6 @@
 import testCases from "./test_exports.json";
 import ReactDOMServer from "react-dom/server";
-import RichText from "./components/RichText";
+import RichText from "./components/RichText2";
 
 describe("Tests from draftjs_exporter", () => {
   for (let testCase of testCases) {
