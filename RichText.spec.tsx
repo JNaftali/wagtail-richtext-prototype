@@ -6,10 +6,10 @@ describe("Tests from draftjs_exporter", () => {
   for (let testCase of testCases) {
     it(testCase.label, () => {
       expect(
-        ReactDOMServer.renderToString(
+        ReactDOMServer.renderToStaticMarkup(
           <RichText data={testCase.content_state as any} />
         )
-      ).toBe(testCase.output.string);
+      ).toMatch(testCase.output.string);
     });
   }
 });
